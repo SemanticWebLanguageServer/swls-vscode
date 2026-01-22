@@ -1,0 +1,144 @@
+{
+  "name": "semantic-web-lsp",
+  "author": "Arthur Vercruysse",
+  "publisher": "ajuvercr",
+  "license": "MIT",
+  "displayName": "semantic web lsp",
+  "description": "A language server for semantic web standards",
+  "version": "0.0.10",
+  "icon": "favicon.png",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
+  },
+  "categories": [
+    "Programming Languages",
+    "Languages",
+    "Formatters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:turtle",
+    "onLanguage:jsonld",
+    "onLanguage:sparql"
+  ],
+  "browser": "./client/dist/browserClientMain",
+  "configurationDefaults": {
+    "[turtle]": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.inlayHints.enabled": "on",
+      "editor.tabCompletion": "onlySnippets",
+      "editor.snippetSuggestions": "top"
+    },
+    "[jsonld]": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.inlayHints.enabled": "on",
+      "editor.tabCompletion": "onlySnippets",
+      "editor.snippetSuggestions": "top"
+    },
+    "[sparql]": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.inlayHints.enabled": "on",
+      "editor.tabCompletion": "onlySnippets",
+      "editor.snippetSuggestions": "top"
+    }
+  },
+  "contributes": {
+    "semanticTokenTypes": [
+      {
+        "id": "langTag",
+        "superType": "decorator",
+        "description": "Denoting the language of the literal"
+      },
+      {
+        "id": "boolean",
+        "superType": "number",
+        "description": "Boolean literal"
+      }
+    ],
+    "languages": [
+      {
+        "id": "turtle",
+        "extensions": [
+          ".ttl"
+        ],
+        "semanticTokens": true,
+        "configuration": "./config/turtle.json"
+      },
+      {
+        "id": "jsonld",
+        "extensions": [
+          ".jsonld"
+        ],
+        "semanticTokens": true,
+        "configuration": "./config/jsonld.json"
+      },
+      {
+        "id": "sparql",
+        "extensions": [
+          ".sq",
+          ".rq"
+        ],
+        "semanticTokens": true,
+        "configuration": "./config/sparql.json"
+      }
+    ],
+    "configuration": [
+      {
+		"order": 22,
+        "id": "semantic-web-lsp",
+        "title": "semantic web lsp",
+        "properties": {
+          "swls.debug": {
+            "type": "boolean",
+            "default": false,
+            "description": "Log debug information."
+          },
+          "swls.turtle": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable Turtle Language."
+          },
+          "swls.jsonld": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable JSON-LD Language."
+          },
+          "swls.sparql": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable SPARQL Language."
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "package": "npx vsce package --baseImagesUrl https://raw.githubusercontent.com/SemanticWebLanguageServer/swls-vscode/main/",
+    "publish": "npx vsce publish --baseImagesUrl https://raw.githubusercontent.com/SemanticWebLanguageServer/swls-vscode/main/",
+    "compile": "webpack",
+    "lint": "eslint",
+	"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@stylistic/eslint-plugin": "^2.9.0",
+    "@vscode/test-web": "^0.0.51",
+    "eslint": "^9.13.0",
+    "path-browserify": "^1.0.1",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0",
+    "webpack": "^5.90.1",
+    "webpack-cli": "^5.1.4"
+  },
+  "bugs": {
+    "url": "https://github.com/SemanticWebLanguageServer/swls-vscode/issues"
+  },
+  "homepage": "https://github.com/SemanticWebLanguageServer/swls-vscode#readme"
+}

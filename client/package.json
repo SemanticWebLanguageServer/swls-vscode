@@ -1,0 +1,22 @@
+{
+	"name": "semantic-web-lsp-client",
+    "description": "VSCode part of the language server for semantic web standards",
+    "author": "Arthur Vercruysse",
+    "license": "MIT",
+    "version": "0.0.1",
+    "publisher": "ajuvercr",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
+    },
+	"engines": {
+		"vscode": "^1.100.0"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^9.0.1"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.100.0",
+		"@vscode/test-web": "^0.0.51"
+	}
+}

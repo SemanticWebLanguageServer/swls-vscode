@@ -1,0 +1,4 @@
+*.vsix
+dist
+node_modules
+screenshots
