@@ -5,26 +5,20 @@
   "license": "MIT",
   "displayName": "semantic web lsp",
   "description": "A language server for semantic web standards",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "icon": "favicon.png",
-  "engines": {
-    "vscode": "^1.100.0"
-  },
+  "engines": { "vscode": "^1.100.0" },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
   },
-  "categories": [
-    "Programming Languages",
-    "Languages",
-    "Formatters",
-    "Other"
-  ],
+  "categories": [ "Programming Languages", "Languages", "Formatters", "Other" ],
   "activationEvents": [
     "onLanguage:turtle",
     "onLanguage:jsonld",
     "onLanguage:sparql"
   ],
+  "main": "./client/dist/nodeClientMain",
   "browser": "./client/dist/browserClientMain",
   "configurationDefaults": {
     "[turtle]": {
@@ -62,40 +56,44 @@
     "languages": [
       {
         "id": "turtle",
-        "extensions": [
-          ".ttl"
-        ],
+        "extensions": [ ".ttl" ],
         "semanticTokens": true,
         "configuration": "./config/turtle.json"
       },
       {
         "id": "jsonld",
-        "extensions": [
-          ".jsonld"
-        ],
+        "extensions": [ ".jsonld" ],
         "semanticTokens": true,
         "configuration": "./config/jsonld.json"
       },
       {
         "id": "sparql",
-        "extensions": [
-          ".sq",
-          ".rq"
-        ],
+        "extensions": [ ".sq", ".rq" ],
         "semanticTokens": true,
         "configuration": "./config/sparql.json"
       }
     ],
     "configuration": [
       {
-		"order": 22,
+        "order": 22,
         "id": "semantic-web-lsp",
         "title": "semantic web lsp",
         "properties": {
-          "swls.debug": {
+          "swls.checkUpdate": {
+            "type": "boolean",
+            "default": true,
+            "description": "Check for new releases from GitHub."
+          },
+          "swls.automaticUpdate": {
             "type": "boolean",
             "default": false,
-            "description": "Log debug information."
+            "description": "Automatically install new updates."
+          },
+          "swls.log": {
+            "type": "string",
+            "enum": [ "error", "warn", "info", "debug", "trace" ],
+            "default": "debug",
+            "description": "Log level for the language server."
           },
           "swls.turtle": {
             "type": "boolean",
@@ -109,8 +107,50 @@
           },
           "swls.sparql": {
             "type": "boolean",
-            "default": true,
+            "default": false,
             "description": "Enable SPARQL Language."
+          },
+          "swls.ontologies": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [  ],
+            "description": "Extra ontology URLs to import."
+          },
+          "swls.shapes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [  ],
+            "description": "Extra shape URLs to import."
+          },
+          "swls.disabled": {
+            "type": "array",
+            "items": { "type": "string", "enum": [ "shapes" ] },
+            "default": [  ],
+            "description": "Features to disable (e.g. \"shapes\")."
+          },
+          "swls.prefixDisabled": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [  ],
+            "description": "Prefixes from prefix.cc to hide from completions."
+          },
+          "swls.completion.mode": {
+            "type": "string",
+            "enum": [ "none", "loose", "strict" ],
+            "default": "none",
+            "description": "Property completion mode. 'loose' suggests all properties; 'strict' only suggests properties whose domain matches the subject type; 'none' uses the server default."
+          },
+          "swls.completion.strict": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [  ],
+            "description": "Namespace prefixes that require a matching domain (used when mode is 'loose' to selectively enforce strictness). Takes precedence over mode."
+          },
+          "swls.completion.except": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [  ],
+            "description": "Namespace prefixes that are always suggested regardless of domain (used when mode is 'strict' to selectively relax strictness). Takes precedence over mode."
           }
         }
       }
@@ -122,7 +162,7 @@
     "publish": "npx vsce publish --baseImagesUrl https://raw.githubusercontent.com/SemanticWebLanguageServer/swls-vscode/main/",
     "compile": "webpack",
     "lint": "eslint",
-	"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+    "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
   "devDependencies": {

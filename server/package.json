@@ -1,18 +1,14 @@
 {
-	    "name": "semantic-web-lsp-server",
-        "description": "Server part of the language server for semantic web standards",
-        "version": "1.0.0",
-        "author": "Arthur Vercruysse",
-        "license": "MIT",
-        "engines": {
-                "node": "*"
-        },
-        "repository": {
-                "type": "git",
-                "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
-        },
-        "dependencies": {
-            "swls-wasm": "^0.2.2"
-        },
-        "scripts": {}
+  "name": "semantic-web-lsp-server",
+  "description": "Server part of the language server for semantic web standards",
+  "version": "1.0.0",
+  "author": "Arthur Vercruysse",
+  "license": "MIT",
+  "engines": { "node": "*" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
+  },
+  "dependencies": { "swls-wasm": "^0.2.13-alhpa.2" },
+  "scripts": {  }
 }
