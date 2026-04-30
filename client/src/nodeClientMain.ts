@@ -22,6 +22,7 @@ import { download } from "./download";
 
 const VERSION_REGEX = /version=([^ ]*)/;
 const REPO = "SemanticWebLanguageServer/swls";
+const PLAIN = "swls";
 const BINARY_NAME = os.platform() === "win32" ? "swls.exe" : "swls";
 
 function getTarget(): string {
@@ -29,10 +30,10 @@ function getTarget(): string {
   const arch = os.arch();
 
   if (platform === "win32" && arch === "x64") {
-    return "swls-windows-x86_64.exe";
+    return "windows-x86_64.exe";
   }
   if (platform === "win32" && arch === "arm64") {
-    return "swls-windows-arm64.exe";
+    return "windows-arm64.exe";
   }
   if (platform === "linux" && arch === "x64") {
     return "linux-x86_64";
@@ -102,8 +103,7 @@ async function install(
   const binaryPath = path.join(binDir, BINARY_NAME);
 
   const target = getTarget();
-
-  const url = `https://github.com/${REPO}/releases/download/${version}/${BINARY_NAME}-${target}`;
+  const url = `https://github.com/${REPO}/releases/download/${version}/${PLAIN}-${target}`;
   channel.appendLine(`Downloading from ${url} to ${binaryPath}`);
 
   await vscode.window.withProgress(

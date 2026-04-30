@@ -15,7 +15,8 @@ globalThis.fetch = function (url, options) {
   if (urlStr.startsWith("file://")) {
     return Promise.resolve().then(() => {
       const fs = require("fs");
-      const filePath = new URL(urlStr).pathname;
+      const { fileURLToPath } = require("url");
+      const filePath = fileURLToPath(urlStr);
       const buffer = fs.readFileSync(filePath);
       return new Response(buffer, { status: 200 });
     });

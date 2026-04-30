@@ -6,7 +6,7 @@
 [![Visual Studio Marketplace Last Updated](https://img.shields.io/visual-studio-marketplace/last-updated/ajuvercr.semantic-web-lsp?label=VSCode%20Extension)](https://marketplace.visualstudio.com/items?itemName=ajuvercr.semantic-web-lsp)
 
 This repo includes the source code for the semantic web language server.
-The language server provides IDE like functionality for semantic web languages, including Turtle, JSON-LD and SPARQL.
+The language server provides IDE like functionality for semantic web languages, including Turtle, TriG, JSON-LD and SPARQL.
 
 <!-- A live demo can be found [online](https://ajuvercr.github.io/semantic-web-lsp/), built with monaco editors. -->
 
@@ -43,7 +43,7 @@ The language server provides IDE like functionality for semantic web languages, 
 
 ### Formatting
 
-- Format Turtle
+- Format Turtle and JSON-LD
 
 ### Highlighting
 
@@ -52,52 +52,25 @@ The language server provides IDE like functionality for semantic web languages, 
 
 ## Use the LSP
 
-Currently a fluwent install is possible for NeoVim and VSCode.
+Currently a fluent install is possible for NeoVim and VSCode.
 However the language server protocol enables swift integration into other editors.
 
 ### VS Code
 
 Install the semantic web lsp extension ([vscode](https://marketplace.visualstudio.com/items?itemName=ajuvercr.semantic-web-lsp) or [open-vscode](https://open-vsx.org/extension/ajuvercr/semantic-web-lsp)).
-The extension starts the lsp from WASM and starts the vscode LSP client.
+
+On startup, the extension tries to launch a native `swls` binary (first from its own managed location, then from your `PATH`). If no binary is found it falls back to a bundled WASM worker so the LSP is available immediately.
+
+In the background it checks GitHub releases for a newer version. If one is available you will be prompted to install or update; after the download completes a window reload switches to the native binary. You can control this behaviour with two settings:
+
+- `swls.checkUpdate` (default: `true`) — check for new releases on startup
+- `swls.automaticUpdate` (default: `false`) — install updates without prompting
+
+You can configure the LSP to disable certain languages via `swls.turtle`, `swls.jsonld`, and `swls.sparql` (SPARQL is disabled by default as it is not fully supported yet).
 
 ### NeoVim
 
-To use the LSP you will always have to install the binary.
-So do that first:
-
-```
-cargo install --git https://github.com/SemanticWebLanguageServer/swls --bin swls
-```
-Or locally
-```
-git clone https://github.com/SemanticWebLanguageServer/swls
-cargo install --path swls
-```
-
-Configure the LSP in NeoVim.
-
-```lua
-#  Add a config to lspconfig.configs
-local configs = require("lspconfig.configs")
-
-configs.jsonld = {
-  default_config = {
-    cmd = { 'swls' },
-    filetypes = { 'jsonld', 'turtle', 'sparql' },
-    root_dir = require("lspconfig.util").find_git_ancestor,
-    single_file_support = true,
-    init_options = {},
-  }
-}
-
-# Start the LSP
-local lspconfig = require("lspconfig")
-
-lspconfig.jsonld.setup {
-  on_attach = M.on_attach,
-  capabilities = M.capabilities,
-}
-```
+A NeoVim plugin is available at [SemanticWebLanguageServer/swls.nvim](https://github.com/SemanticWebLanguageServer/swls.nvim).
 
 
 ## Screenshots

@@ -46,6 +46,7 @@ export function buildClientOptions(
       sparql,
       turtle,
       jsonld,
+      trig: false,
       ontologies,
       shapes,
       disabled,

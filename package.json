@@ -44,13 +44,24 @@
     "semanticTokenTypes": [
       {
         "id": "langTag",
-        "superType": "decorator",
+        "superType": "keyword",
         "description": "Denoting the language of the literal"
       },
       {
         "id": "boolean",
-        "superType": "number",
+        "superType": "keyword",
         "description": "Boolean literal"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "scopes": {
+          "langTag": ["keyword.control"],
+          "boolean": ["constant.language"],
+          "enum": ["entity.name.tag"],
+          "enumMember": ["support.constant"],
+          "property": ["entity.other.attribute-name"]
+        }
       }
     ],
     "languages": [
@@ -62,7 +73,7 @@
       },
       {
         "id": "jsonld",
-        "extensions": [ ".jsonld" ],
+        "extensions": [ ".jsonld", ".json" ],
         "semanticTokens": true,
         "configuration": "./config/jsonld.json"
       },

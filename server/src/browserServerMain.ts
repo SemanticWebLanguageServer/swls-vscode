@@ -36,10 +36,6 @@ async function handleIncomingMessage(event: MessageEvent) {
     log(payload);
   }
   const len = encoder.encode(payload).byteLength;
-  if (len !== payload.length) {
-    log("Different lengths " + len + " !+ " + payload.length);
-  }
-
   const framed = `Content-Length: ${len}\r\n\r\n${payload}`;
   send_to_lsp(framed);
 }
