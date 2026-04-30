@@ -68,12 +68,6 @@ function getCurrentVersion(
   });
 }
 
-class BinaryNotFound extends Error {
-  constructor() {
-    super("Binary not found");
-  }
-}
-
 async function currentCommand(
   context: vscode.ExtensionContext,
 ): Promise<string> {
@@ -93,32 +87,7 @@ async function currentCommand(
   if (exists) {
     return BINARY_NAME;
   }
-  throw new BinaryNotFound();
-}
-
-async function updateVersion(
-  checkUpdate: boolean,
-  autoUpdate: boolean,
-  context: vscode.ExtensionContext,
-  channel: vscode.OutputChannel,
-): Promise<string> {
-  const cmd = await currentCommand(context);
-
-  if (!checkUpdate) return cmd;
-
-  const currentVersion = await getCurrentVersion(cmd, channel);
-  let version = await getLatestRelease();
-
-  if (currentVersion == version) return cmd;
-
-  // we should either ask or update
-  const doUpdate = autoUpdate || (await promptUpdate(currentVersion, version));
-
-  if (!doUpdate) {
-    return cmd;
-  }
-
-  return await install(context, channel, version);
+  throw new Error("Binary not found");
 }
 
 async function install(
@@ -156,55 +125,79 @@ async function install(
   return binaryPath;
 }
 
-async function ensureInstalled(
-  checkUpdate: boolean,
-  autoUpdate: boolean,
-  context: vscode.ExtensionContext,
-  channel: vscode.OutputChannel,
-): Promise<string> {
-  try {
-    return await updateVersion(checkUpdate, autoUpdate, context, channel);
-  } catch (ex) {
-    if (ex instanceof BinaryNotFound) {
-      const ok = autoUpdate || (await promptInstall());
-      if (ok) {
-        return await install(context, channel);
-      }
-    } else {
-      throw ex;
-    }
-  }
-  throw new Error("User declined or installation failed");
-}
-
-async function promptUpdate(current: string, next: string): Promise<boolean> {
-  const choice = await vscode.window.showInformationMessage(
-    `The language server update available. Go from version ${current} to ${next}? `,
-    "Update",
-    "Cancel",
-  );
-
-  return choice == "Update";
-}
-
-async function promptInstall(): Promise<boolean> {
-  const choice = await vscode.window.showInformationMessage(
-    "The language server is not installed. Install it now?",
-    "Install",
-    "Cancel",
-  );
-
-  return choice === "Install";
-}
-
 async function getLatestRelease(): Promise<string> {
-  const res = await fetch(`https://api.github.com/repos/${REPO}/releases`);
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
+    signal: AbortSignal.timeout(10_000),
+  });
   const json: Array<{ tag_name: string }> = await res.json();
   const latest = json.find((x) => x.tag_name?.startsWith("swls-"));
   if (!latest) {
     throw new Error("No valid release found");
   }
   return latest.tag_name;
+}
+
+async function checkForUpdates(
+  autoUpdate: boolean,
+  context: vscode.ExtensionContext,
+  channel: vscode.OutputChannel,
+): Promise<void> {
+  let currentVersion = "";
+  try {
+    const cmd = await currentCommand(context);
+    currentVersion = await getCurrentVersion(cmd, channel);
+  } catch {
+    // no binary installed yet
+  }
+
+  let latestVersion: string;
+  try {
+    latestVersion = await getLatestRelease();
+  } catch (err) {
+    channel.appendLine(`Failed to fetch latest release: ${err}`);
+    return;
+  }
+
+  if (currentVersion === latestVersion) {
+    channel.appendLine(`Already at latest version: ${currentVersion}`);
+    return;
+  }
+
+  const isInstall = currentVersion === "";
+  let doUpdate = autoUpdate;
+  if (!doUpdate) {
+    const label = isInstall ? "Install" : "Update";
+    const message = isInstall
+      ? "swls language server is available. Install it now?"
+      : `swls update available: ${currentVersion} → ${latestVersion}`;
+    const choice = await vscode.window.showInformationMessage(
+      message,
+      label,
+      "Cancel",
+    );
+    doUpdate = choice === label;
+  }
+
+  if (!doUpdate) return;
+
+  try {
+    await install(context, channel, latestVersion);
+  } catch (err) {
+    channel.appendLine(`Failed to install: ${err}`);
+    vscode.window.showWarningMessage(`swls: installation failed. (${err})`);
+    return;
+  }
+
+  const choice = await vscode.window.showInformationMessage(
+    isInstall
+      ? "swls language server installed. Reload window to use native binary."
+      : "swls updated. Reload window to apply.",
+    "Reload",
+    "Later",
+  );
+  if (choice === "Reload") {
+    vscode.commands.executeCommand("workbench.action.reloadWindow");
+  }
 }
 
 let client: NodeLanguageClient | undefined;
@@ -249,21 +242,45 @@ function createWorkerTransport(worker: WorkerThread) {
   return { reader, writer };
 }
 
+async function startWasm(
+  context: vscode.ExtensionContext,
+  clientOptions: ReturnType<typeof buildClientOptions>,
+  channel: vscode.OutputChannel,
+): Promise<void> {
+  setupBroadcastLogging(channel);
+  setupVirtualDocProvider();
+
+  const shimPath = context.asAbsolutePath("server/dist/nodeWorkerShim.js");
+  const worker = new WorkerThread(shimPath);
+  worker.postMessage({ context: context.extensionUri.toString() });
+
+  const { reader, writer } = createWorkerTransport(worker);
+  const wasmClient = new NodeLanguageClient(
+    "semantic-web-lsp",
+    "semantic-web-lsp",
+    (): Promise<{ reader: PassThrough; writer: Transform }> =>
+      Promise.resolve({ reader, writer }),
+    clientOptions,
+  );
+  registerFsHandlers(wasmClient, channel);
+
+  await new Promise((res) => setTimeout(res, 200));
+  await wasmClient.start();
+  client = wasmClient;
+  channel.appendLine("WASM client started");
+}
+
 export async function activate(context: ExtensionContext) {
   const channel = vscode.window.createOutputChannel("swls");
-
   const cfg = vscode.workspace.getConfiguration("swls");
   const clientOptions = buildClientOptions(cfg);
-  try {
-    const checkUpdate = cfg.get<boolean>("checkUpdate") ?? true;
-    const autoUpdate = cfg.get<boolean>("automaticUpdate") ?? false;
-    const serverBin = await ensureInstalled(
-      checkUpdate,
-      autoUpdate,
-      context,
-      channel,
-    );
+  const checkUpdate = cfg.get<boolean>("checkUpdate") ?? true;
+  const autoUpdate = cfg.get<boolean>("automaticUpdate") ?? false;
 
+  // Start immediately with whatever is locally available
+  let startedNative = false;
+  try {
+    const serverBin = await currentCommand(context);
     channel.appendLine("Attempting to start native binary: " + serverBin);
     const nodeClient = new NodeLanguageClient(
       "semantic-web-lsp",
@@ -277,42 +294,30 @@ export async function activate(context: ExtensionContext) {
     try {
       await nodeClient.start();
       client = nodeClient;
+      startedNative = true;
       channel.appendLine("Native binary started");
-      return;
     } catch (err) {
       await nodeClient.stop().catch(() => {});
-      throw err;
+      channel.appendLine("Failed to start native binary: " + err);
     }
   } catch (err) {
-    channel.appendLine("Failed to start native binary: " + err);
-    vscode.window.showWarningMessage(`swls: falling back to WASM. (${err})`);
-    // WASM fallback via worker_threads + nodeWorkerShim
+    channel.appendLine("No local binary found: " + err);
+  }
+
+  if (!startedNative) {
     channel.appendLine("Starting WASM worker");
-    setupBroadcastLogging(channel);
-    setupVirtualDocProvider();
-
-    const shimPath = context.asAbsolutePath("server/dist/nodeWorkerShim.js");
-    const worker = new WorkerThread(shimPath);
-    worker.postMessage({ context: context.extensionUri.toString() });
-
-    const { reader, writer } = createWorkerTransport(worker);
-    const wasmClient = new NodeLanguageClient(
-      "semantic-web-lsp",
-      "semantic-web-lsp",
-      (): Promise<{ reader: PassThrough; writer: Transform }> =>
-        Promise.resolve({ reader, writer }),
-      clientOptions,
-    );
-    registerFsHandlers(wasmClient, channel);
-
     try {
-      await new Promise((res) => setTimeout(res, 200));
-      await wasmClient.start();
-      client = wasmClient;
-      channel.appendLine("WASM client started");
+      await startWasm(context, clientOptions, channel);
     } catch (err) {
       vscode.window.showWarningMessage(`swls: Failed to start WASM. (${err})`);
     }
+  }
+
+  // Background: check for updates / prompt to install
+  if (checkUpdate) {
+    checkForUpdates(autoUpdate, context, channel).catch((err) => {
+      channel.appendLine(`Update check failed: ${err}`);
+    });
   }
 }
 

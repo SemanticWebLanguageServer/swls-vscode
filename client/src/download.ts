@@ -96,5 +96,10 @@ export async function download(
       file.close();
       reject(err);
     });
+
+    request.setTimeout(30_000, () => {
+      file.close();
+      request.destroy(new Error("Download timed out"));
+    });
   });
 }

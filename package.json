@@ -6,7 +6,7 @@
   "displayName": "semantic web lsp",
   "description": "A language server for semantic web standards",
   "version": "0.0.12",
-  "icon": "favicon.png",
+  "icon": "logo.png",
   "engines": { "vscode": "^1.100.0" },
   "repository": {
     "type": "git",
@@ -77,7 +77,7 @@
       {
         "order": 22,
         "id": "semantic-web-lsp",
-        "title": "semantic web lsp",
+        "title": "Semantic Web Language Server SWLS",
         "properties": {
           "swls.checkUpdate": {
             "type": "boolean",
