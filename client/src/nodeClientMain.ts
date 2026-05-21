@@ -72,22 +72,17 @@ function getCurrentVersion(
 async function currentCommand(
   context: vscode.ExtensionContext,
 ): Promise<string> {
-  const binDir = context.globalStorageUri.fsPath;
-  const binaryPath = path.join(binDir, BINARY_NAME);
+  const cfg = vscode.workspace.getConfiguration("swls");
+  const userCommand = cfg.get<string>("command", "").trim();
+  if (userCommand) {
+    return userCommand;
+  }
+
+  const binaryPath = path.join(context.extensionPath, BINARY_NAME);
   if (fs.existsSync(binaryPath)) {
     return binaryPath;
   }
 
-  const checker = os.platform() === "win32" ? "where" : "which";
-  const exists = await new Promise((resolve) => {
-    execFile(checker, [BINARY_NAME], (error) => {
-      resolve(!error);
-    });
-  });
-
-  if (exists) {
-    return BINARY_NAME;
-  }
   throw new Error("Binary not found");
 }
 
@@ -98,29 +93,36 @@ async function install(
 ): Promise<string> {
   version = version ?? (await getLatestRelease());
 
-  const binDir = context.globalStorageUri.fsPath;
-  fs.mkdirSync(binDir, { recursive: true });
-  const binaryPath = path.join(binDir, BINARY_NAME);
+  const binaryPath = path.join(context.extensionPath, BINARY_NAME);
+  const tmpPath = path.join(context.extensionPath, `${BINARY_NAME}.tmp`);
 
   const target = getTarget();
   const url = `https://github.com/${REPO}/releases/download/${version}/${PLAIN}-${target}`;
-  channel.appendLine(`Downloading from ${url} to ${binaryPath}`);
+  channel.appendLine(`Downloading from ${url} to ${tmpPath}`);
 
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Installing LSP...",
-    },
-    async (progress) => {
-      channel.appendLine(`Starting download`);
-      await download(url, binaryPath, progress);
-      channel.appendLine(`Download is done`);
-    },
-  );
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Installing LSP...",
+      },
+      async (progress) => {
+        channel.appendLine(`Starting download`);
+        await download(url, tmpPath, progress);
+        channel.appendLine(`Download is done`);
+      },
+    );
+  } catch (err) {
+    fs.rmSync(tmpPath, { force: true });
+    throw err;
+  }
 
   if (os.platform() !== "win32") {
-    fs.chmodSync(binaryPath, 0o755);
+    fs.chmodSync(tmpPath, 0o755);
   }
+
+  fs.renameSync(tmpPath, binaryPath);
+  channel.appendLine(`Installed to ${binaryPath}`);
 
   return binaryPath;
 }
@@ -252,6 +254,14 @@ async function startWasm(
 
   const shimPath = context.asAbsolutePath("server/dist/nodeWorkerShim.js");
   const worker = new WorkerThread(shimPath);
+
+  await new Promise<void>((resolve, reject) => {
+    worker.once("error", reject);
+    worker.once("online", resolve);
+  });
+  worker.removeAllListeners("error");
+
+  worker.on("error", (err) => channel.appendLine("WASM worker error: " + err));
   worker.postMessage({ context: context.extensionUri.toString() });
 
   const { reader, writer } = createWorkerTransport(worker);

@@ -63,9 +63,10 @@ export async function download(
         received += chunk.length;
 
         if (total) {
-          const percent = (received / total) * 100;
+          const receivedMB = (received / 1024 / 1024).toFixed(1);
+          const totalMB = (total / 1024 / 1024).toFixed(1);
           progress.report({
-            message: `${percent.toFixed(0)}%`,
+            message: `${receivedMB} / ${totalMB} MB`,
             increment: (chunk.length / total) * 100,
           });
         } else {

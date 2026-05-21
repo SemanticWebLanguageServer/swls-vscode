@@ -3,8 +3,8 @@
   "author": "Arthur Vercruysse",
   "publisher": "ajuvercr",
   "license": "MIT",
-  "displayName": "SWLS – Turtle, SPARQL & JSON-LD Language Server",
-  "description": "Semantic Web Language Server for Turtle, SPARQL and JSON-LD — autocompletion, diagnostics, formatting and more",
+  "displayName": "SWLS – Turtle, TriG, SPARQL & JSON-LD Language Server",
+  "description": "Semantic Web Language Server for Turtle, TriG, SPARQL and JSON-LD — autocompletion, diagnostics, formatting and more",
   "keywords": [
     "turtle",
     "sparql",
@@ -19,9 +19,9 @@
     "language server",
     "semantic web language server"
   ],
-  "version": "0.0.13",
+  "version": "0.0.15",
   "icon": "logo.png",
-  "engines": { "vscode": "^1.100.0" },
+  "engines": { "vscode": ">=1.100.0" },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
@@ -29,6 +29,7 @@
   "categories": [ "Programming Languages", "Languages", "Formatters", "Other" ],
   "activationEvents": [
     "onLanguage:turtle",
+    "onLanguage:trig",
     "onLanguage:jsonld",
     "onLanguage:sparql"
   ],
@@ -36,6 +37,12 @@
   "browser": "./client/dist/browserClientMain",
   "configurationDefaults": {
     "[turtle]": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.inlayHints.enabled": "on",
+      "editor.tabCompletion": "onlySnippets",
+      "editor.snippetSuggestions": "top"
+    },
+    "[trig]": {
       "editor.semanticHighlighting.enabled": true,
       "editor.inlayHints.enabled": "on",
       "editor.tabCompletion": "onlySnippets",
@@ -86,6 +93,12 @@
         "configuration": "./config/turtle.json"
       },
       {
+        "id": "trig",
+        "extensions": [ ".trig" ],
+        "semanticTokens": true,
+        "configuration": "./config/trig.json"
+      },
+      {
         "id": "jsonld",
         "extensions": [ ".jsonld", ".json" ],
         "semanticTokens": true,
@@ -104,6 +117,11 @@
         "id": "semantic-web-lsp",
         "title": "Semantic Web Language Server SWLS",
         "properties": {
+          "swls.command": {
+            "type": "string",
+            "default": "",
+            "description": "Path to the swls binary. If empty, the bundled binary in the extension directory is used."
+          },
           "swls.checkUpdate": {
             "type": "boolean",
             "default": true,
@@ -124,6 +142,11 @@
             "type": "boolean",
             "default": true,
             "description": "Enable Turtle Language."
+          },
+          "swls.trig": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable TriG Language."
           },
           "swls.jsonld": {
             "type": "boolean",

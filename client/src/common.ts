@@ -14,6 +14,7 @@ export function buildClientOptions(
   cfg: vscode.WorkspaceConfiguration,
 ): LanguageClientOptions {
   const turtle = cfg.get<boolean>("turtle");
+  const trig = cfg.get<boolean>("trig");
   const jsonld = cfg.get<boolean>("jsonld");
   const sparql = cfg.get<boolean>("sparql");
   const log = cfg.get<string>("log", "debug");
@@ -37,6 +38,7 @@ export function buildClientOptions(
   return {
     documentSelector: [
       { language: "turtle" },
+      { language: "trig" },
       { language: "jsonld" },
       { language: "sparql" },
     ],
@@ -45,8 +47,8 @@ export function buildClientOptions(
       log,
       sparql,
       turtle,
+      trig,
       jsonld,
-      trig: false,
       ontologies,
       shapes,
       disabled,

@@ -1,6 +1,5 @@
 # Semantic Web Language Server
 
-[![CI](https://github.com/semanticweblanguageserver/swls/actions/workflows/ci.yml/badge.svg)](https://github.com/semanticweblanguageserver/swls/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-latest-blue)](https://semanticweblanguageserver.github.io/swls/docs/lsp_core/index.html)
 ![LICENSE](https://img.shields.io/badge/License-MIT-8A2BE2)
 [![Visual Studio Marketplace Last Updated](https://img.shields.io/visual-studio-marketplace/last-updated/ajuvercr.semantic-web-lsp?label=VSCode%20Extension)](https://marketplace.visualstudio.com/items?itemName=ajuvercr.semantic-web-lsp)
@@ -53,7 +52,7 @@ IDE support for Semantic Web languages — Turtle, TriG, JSON-LD, and SPARQL. Au
 
 Install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ajuvercr.semantic-web-lsp) or [Open VSX Registry](https://open-vsx.org/extension/ajuvercr/semantic-web-lsp).
 
-On startup the extension looks for a native `swls` binary — first in its own managed location, then in your `PATH`. If no binary is found it falls back to a bundled WASM worker so the LSP is available immediately without any extra setup.
+On startup the extension looks for a native `swls` binary in its own directory (set `swls.command` to use a custom path instead). If no binary is found it falls back to a bundled WASM worker so the LSP is available immediately without any extra setup.
 
 In the background it checks GitHub releases for updates. When a newer version is available you will be prompted to install it; after the download completes a window reload switches to the native binary.
 
@@ -67,7 +66,9 @@ All settings live under the `swls` prefix.
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
+| `swls.command` | string | `""` | Path to the swls binary. If empty, the bundled binary in the extension directory is used |
 | `swls.turtle` | boolean | `true` | Enable Turtle language support |
+| `swls.trig` | boolean | `true` | Enable TriG language support |
 | `swls.jsonld` | boolean | `true` | Enable JSON-LD language support |
 | `swls.sparql` | boolean | `false` | Enable SPARQL language support (experimental) |
 | `swls.checkUpdate` | boolean | `true` | Check GitHub for new releases on startup |
@@ -98,3 +99,9 @@ All settings live under the `swls` prefix.
 | Class completion | Property completion |
 |---|---|
 | ![Complete Class](./screenshots/complete_class.png) | ![Complete Property](./screenshots/complete_property.png) |
+
+## Support
+
+If SWLS helps your workflow, consider supporting development:
+
+☕ https://ko-fi.com/ajuvercr
