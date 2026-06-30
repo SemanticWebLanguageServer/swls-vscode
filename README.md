@@ -4,7 +4,7 @@
 ![LICENSE](https://img.shields.io/badge/License-MIT-8A2BE2)
 [![Visual Studio Marketplace Last Updated](https://img.shields.io/visual-studio-marketplace/last-updated/ajuvercr.semantic-web-lsp?label=VSCode%20Extension)](https://marketplace.visualstudio.com/items?itemName=ajuvercr.semantic-web-lsp)
 
-IDE support for Semantic Web languages — Turtle, TriG, JSON-LD, and SPARQL. Autocompletion, diagnostics, formatting, SHACL validation, and more.
+IDE support for Semantic Web languages — Turtle, TriG, N3, JSON-LD, and SPARQL. Autocompletion, diagnostics, formatting, SHACL validation, and more.
 
 ## Table of Contents
 
@@ -40,7 +40,8 @@ IDE support for Semantic Web languages — Turtle, TriG, JSON-LD, and SPARQL. Au
 
 ### Formatting
 
-- Format Turtle and JSON-LD documents
+- Format Turtle, TriG, N3, and JSON-LD documents
+- Enabled for Turtle by default; enable the others via `swls.format.*`
 
 ### Semantic Highlighting
 
@@ -67,20 +68,54 @@ All settings live under the `swls` prefix.
 | Setting | Type | Default | Description |
 |---|---|---|---|
 | `swls.command` | string | `""` | Path to the swls binary. If empty, the bundled binary in the extension directory is used |
-| `swls.turtle` | boolean | `true` | Enable Turtle language support |
-| `swls.trig` | boolean | `true` | Enable TriG language support |
-| `swls.jsonld` | boolean | `true` | Enable JSON-LD language support |
-| `swls.sparql` | boolean | `false` | Enable SPARQL language support (experimental) |
+| `swls.forceWasm` | boolean | `false` | Skip the native binary and always run the bundled WASM language server |
+| `swls.languages` | string[] | `["turtle", "trig", "n3", "jsonld"]` | Languages SWLS is enabled for. Values: `turtle`, `trig`, `n3`, `jsonld`, `sparql` (experimental) |
+| `swls.formatLanguages` | string[] | `["turtle"]` | Languages document formatting is enabled for. Values: `turtle`, `trig`, `n3`, `jsonld` |
 | `swls.checkUpdate` | boolean | `true` | Check GitHub for new releases on startup |
 | `swls.automaticUpdate` | boolean | `false` | Install updates without prompting |
 | `swls.log` | string | `"debug"` | Log level: `error`, `warn`, `info`, `debug`, `trace` |
 | `swls.ontologies` | string[] | `[]` | Extra ontology URLs to load |
 | `swls.shapes` | string[] | `[]` | Extra SHACL shape URLs to load |
-| `swls.disabled` | string[] | `[]` | Features to disable (e.g. `"shapes"`) |
 | `swls.prefixDisabled` | string[] | `[]` | Prefixes from prefix.cc to hide from completions |
 | `swls.completion.mode` | string | `"none"` | Property completion mode: `none` (server default), `loose` (all properties), `strict` (domain-matched only) |
-| `swls.completion.strict` | string[] | `[]` | Namespace prefixes that require a matching domain even in `loose` mode |
-| `swls.completion.except` | string[] | `[]` | Namespace prefixes always suggested regardless of domain, even in `strict` mode |
+| `swls.completion.exceptions` | string[] | `[]` | Namespace IRIs that get the **opposite** treatment of `completion.mode`: forced strict in `loose` mode, always suggested in `strict` mode. Ignored when mode is `none` |
+| `swls.prefixFormat` | string | `"turtle"` | Syntax for inserted Turtle/TriG prefix declarations: `turtle` (`@prefix ex: <...> .`) or `sparql` (`PREFIX ex: <...>`) |
+| `swls.disabled` | string[] | `[]` | Features and diagnostics to turn off. Pick from the values below (in Settings UI: *Add Item* → choose from the dropdown) |
+
+### `swls.disabled` values
+
+| Value | Disables |
+| --- | --- |
+| `shapes` | SHACL shape validation |
+| `undefined_prefix` | The undeclared-prefix diagnostic |
+| `unused_prefix` | The unused-prefix diagnostic |
+| `namespace_properties` | The closed-namespace property diagnostic |
+| `syntax_diagnostics` | Syntax/parse error diagnostics |
+| `completion` | Completion entirely |
+| `completion_keyword` | Keyword completion |
+| `completion_class` | Class-name completion |
+| `completion_property` | Property completion |
+| `completion_prefix` | Prefix-name completion |
+| `completion_subject` | Subject-IRI completion (Turtle only) |
+| `hover` | Hover entirely |
+| `hover_type` | Inferred-type hover |
+| `hover_class` | Class documentation hover |
+| `hover_property` | Property documentation hover |
+| `hover_excluded_property` | Allow-listed-property hover explanation |
+| `goto_definition` | Goto-definition entirely |
+| `goto_definition_components_js` | Components.js goto-definition |
+| `goto_type_definition` | Goto type-definition |
+| `references` | Find-all-references |
+| `rename` | Rename |
+| `semantic_tokens` | Semantic tokens |
+| `format` | Document formatting |
+| `prefix_auto_insert` | Auto-inserting missing prefix declarations |
+| `code_action` | Code actions entirely |
+| `code_action_organize_imports` | The "Organize Imports" quick-fix |
+| `code_action_blank_node_refactor` | Blank-node refactor quick-fixes |
+| `inlay_hint` | Inlay hints |
+
+> Deprecated but still honored, so existing configs keep working: the per-feature `swls.disable.<name>`, per-language `swls.<lang>` and `swls.format.<lang>` booleans, and `swls.completion.strict` / `swls.completion.except` (replaced by `swls.completion.exceptions`).
 
 ## Documentation
 

@@ -9,6 +9,6 @@
     "type": "git",
     "url": "git+https://github.com/SemanticWebLanguageServer/swls-vscode.git"
   },
-  "dependencies": { "swls-wasm": "^0.3.1" },
+  "dependencies": { "swls-wasm": "^0.3.4" },
   "scripts": {  }
 }

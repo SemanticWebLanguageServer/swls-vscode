@@ -73,9 +73,6 @@ const browserServerConfig = {
     devtoolModuleFilenameTemplate: "../[resource-path]",
     publicPath: "",
   },
-  experiments: {
-    asyncWebAssembly: true, // <-- inline wasm into JS
-  },
   resolve: {
     symlinks: false,
     mainFields: ["module", "main"],
@@ -97,8 +94,10 @@ const browserServerConfig = {
         ],
       },
       {
+        // The `web`-target swls-wasm is loaded by URL (we fetch it ourselves),
+        // so emit the .wasm as an asset rather than an async-wasm module.
         test: /\.wasm$/,
-        type: "webassembly/async",
+        type: "asset/resource",
       },
     ],
   },

@@ -5,9 +5,13 @@
 
 const { parentPort } = require("worker_threads");
 
-// Node.js fetch() does not support file:// URLs. The webpack async WASM
-// loader uses fetch(__webpack_require__.p + hash + ".module.wasm") where
-// the public path is a file:// URI. Patch fetch to handle that case.
+// The bundle is built for `target: "webworker"`, so its webpack runtime reads
+// `self.location`. Node worker_threads has no `self` — alias it to globalThis.
+if (typeof globalThis.self === "undefined") globalThis.self = globalThis;
+
+// Node.js fetch() does not support file:// URLs. browserServerMain fetches the
+// wasm asset by an absolute file:// URL (built from the extension path); patch
+// fetch to read those off disk.
 const _originalFetch = globalThis.fetch?.bind(globalThis);
 globalThis.fetch = function (url, options) {
   const urlStr =
@@ -18,7 +22,11 @@ globalThis.fetch = function (url, options) {
       const { fileURLToPath } = require("url");
       const filePath = fileURLToPath(urlStr);
       const buffer = fs.readFileSync(filePath);
-      return new Response(buffer, { status: 200 });
+      // Set the MIME type so WebAssembly.instantiateStreaming accepts it.
+      return new Response(buffer, {
+        status: 200,
+        headers: { "Content-Type": "application/wasm" },
+      });
     });
   }
   if (_originalFetch) return _originalFetch(url, options);

@@ -1,7 +1,41 @@
 import * as vscode from "vscode";
 import { LanguageClientOptions } from "vscode-languageclient";
 
-const channels: { [label: string]: vscode.OutputChannel } = {};
+const channels: Record<string, vscode.OutputChannel> = {};
+
+// Legacy: maps the deprecated `swls.disable.<key>` booleans to the `Disabled`
+// enum values the server expects. Superseded by the `swls.disabled` array, but
+// still honored so existing user settings keep working.
+const DISABLE_TOGGLES: [string, string][] = [
+  ["shapes", "shapes"],
+  ["undefinedPrefixDiagnostic", "undefined_prefix"],
+  ["unusedPrefixDiagnostic", "unused_prefix"],
+  ["namespacePropertiesDiagnostic", "namespace_properties"],
+  ["syntaxDiagnostics", "syntax_diagnostics"],
+  ["completion", "completion"],
+  ["completionKeyword", "completion_keyword"],
+  ["completionClass", "completion_class"],
+  ["completionProperty", "completion_property"],
+  ["completionPrefix", "completion_prefix"],
+  ["completionSubject", "completion_subject"],
+  ["hover", "hover"],
+  ["hoverType", "hover_type"],
+  ["hoverClass", "hover_class"],
+  ["hoverProperty", "hover_property"],
+  ["hoverExcludedProperty", "hover_excluded_property"],
+  ["gotoDefinition", "goto_definition"],
+  ["gotoDefinitionComponentsJs", "goto_definition_components_js"],
+  ["gotoTypeDefinition", "goto_type_definition"],
+  ["references", "references"],
+  ["rename", "rename"],
+  ["semanticTokens", "semantic_tokens"],
+  ["format", "format"],
+  ["prefixAutoInsert", "prefix_auto_insert"],
+  ["codeAction", "code_action"],
+  ["codeActionOrganizeImports", "code_action_organize_imports"],
+  ["codeActionBlankNodeRefactor", "code_action_blank_node_refactor"],
+  ["inlayHint", "inlay_hint"],
+];
 
 function logToChannel(label: string, msg: string) {
   if (channels[label] === undefined) {
@@ -13,24 +47,61 @@ function logToChannel(label: string, msg: string) {
 export function buildClientOptions(
   cfg: vscode.WorkspaceConfiguration,
 ): LanguageClientOptions {
-  const turtle = cfg.get<boolean>("turtle");
-  const trig = cfg.get<boolean>("trig");
-  const jsonld = cfg.get<boolean>("jsonld");
-  const sparql = cfg.get<boolean>("sparql");
+  // Enabled languages / formatting come from the `swls.languages` and
+  // `swls.formatLanguages` list-enums. The deprecated per-language booleans
+  // (`swls.turtle`, `swls.format.trig`, …) still win when explicitly set.
+  const languages = cfg.get<string[]>("languages", [
+    "turtle",
+    "trig",
+    "n3",
+    "jsonld",
+  ]);
+  const formatLanguages = cfg.get<string[]>("formatLanguages", ["turtle"]);
+  const turtle = cfg.get<boolean>("turtle") ?? languages.includes("turtle");
+  const trig = cfg.get<boolean>("trig") ?? languages.includes("trig");
+  const n3 = cfg.get<boolean>("n3") ?? languages.includes("n3");
+  const jsonld = cfg.get<boolean>("jsonld") ?? languages.includes("jsonld");
+  const sparql = cfg.get<boolean>("sparql") ?? languages.includes("sparql");
+  // Per-language formatting toggles (server default: Turtle on, others off).
+  const format = {
+    turtle: cfg.get<boolean>("format.turtle") ?? formatLanguages.includes("turtle"),
+    trig: cfg.get<boolean>("format.trig") ?? formatLanguages.includes("trig"),
+    n3: cfg.get<boolean>("format.n3") ?? formatLanguages.includes("n3"),
+    jsonld: cfg.get<boolean>("format.jsonld") ?? formatLanguages.includes("jsonld"),
+  };
   const log = cfg.get<string>("log", "debug");
   const ontologies = cfg.get<string[]>("ontologies", []);
   const shapes = cfg.get<string[]>("shapes", []);
-  const disabled = cfg.get<string[]>("disabled", []);
+  // Primary source: the `swls.disabled` list-enum. Merge in any legacy
+  // `swls.disable.<key>` booleans that are still set for backwards compat.
+  const legacyDisabled = DISABLE_TOGGLES.filter(([key]) =>
+    cfg.get<boolean>(`disable.${key}`, false),
+  ).map(([, value]) => value);
+  const disabled = [
+    ...new Set([...cfg.get<string[]>("disabled", []), ...legacyDisabled]),
+  ];
   const prefixDisabled = cfg.get<string[]>("prefixDisabled", []);
   const completionMode = cfg.get<string>("completion.mode", "none");
-  const completionStrict = cfg.get<string[]>("completion.strict", []);
-  const completionExcept = cfg.get<string[]>("completion.except", []);
+  const completionExceptions = cfg.get<string[]>("completion.exceptions", []);
+  // Deprecated lists, still honored: `strict` forced strict namespaces (loose
+  // mode), `except` forced loose namespaces (strict mode).
+  const legacyStrict = cfg.get<string[]>("completion.strict", []);
+  const legacyExcept = cfg.get<string[]>("completion.except", []);
+  const prefixFormat = cfg.get<string>("prefixFormat", "turtle");
 
+  // The server's CompletionConfig is "none"|"loose"|"strict", or a base mode
+  // with namespace exceptions that get the opposite treatment:
+  //   { strict: [...] } => loose base, these forced strict
+  //   { loose:  [...] } => strict base, these forced loose
   let completion: string | { strict: string[] } | { loose: string[] };
-  if (completionStrict.length > 0) {
-    completion = { strict: completionStrict };
-  } else if (completionExcept.length > 0) {
-    completion = { loose: completionExcept };
+  if (completionMode === "loose" && completionExceptions.length > 0) {
+    completion = { strict: completionExceptions };
+  } else if (completionMode === "strict" && completionExceptions.length > 0) {
+    completion = { loose: completionExceptions };
+  } else if (legacyStrict.length > 0) {
+    completion = { strict: legacyStrict };
+  } else if (legacyExcept.length > 0) {
+    completion = { loose: legacyExcept };
   } else {
     completion = completionMode;
   }
@@ -39,6 +110,7 @@ export function buildClientOptions(
     documentSelector: [
       { language: "turtle" },
       { language: "trig" },
+      { language: "n3" },
       { language: "jsonld" },
       { language: "sparql" },
     ],
@@ -48,12 +120,15 @@ export function buildClientOptions(
       sparql,
       turtle,
       trig,
+      n3,
       jsonld,
+      format,
       ontologies,
       shapes,
       disabled,
       prefix_disabled: prefixDisabled,
       completion,
+      prefix_format: prefixFormat,
     },
   };
 }

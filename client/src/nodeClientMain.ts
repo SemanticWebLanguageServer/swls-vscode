@@ -131,8 +131,10 @@ async function getLatestRelease(): Promise<string> {
   const res = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
     signal: AbortSignal.timeout(10_000),
   });
-  const json: Array<{ tag_name: string }> = await res.json();
-  const latest = json.find((x) => x.tag_name?.startsWith("swls-"));
+  const json: { tag_name: string }[] = await res.json();
+  // Match only the main binary releases (swls-vX.Y.Z), not the per-language
+  // sub-crate tags (swls-lang-*, swls-core-*) which also start with "swls-".
+  const latest = json.find((x) => /^swls-v\d/.test(x.tag_name ?? ""));
   if (!latest) {
     throw new Error("No valid release found");
   }
@@ -152,13 +154,17 @@ async function checkForUpdates(
     // no binary installed yet
   }
 
-  let latestVersion: string;
+  let latestTag: string;
   try {
-    latestVersion = await getLatestRelease();
+    latestTag = await getLatestRelease();
   } catch (err) {
     channel.appendLine(`Failed to fetch latest release: ${err}`);
     return;
   }
+  // `swls --version` reports a bare semver (e.g. "0.3.0") while the release
+  // tag is prefixed ("swls-v0.3.0"). Normalize before comparing/displaying so
+  // an up-to-date binary doesn't keep prompting to update.
+  const latestVersion = latestTag.replace(/^swls-v/, "");
 
   if (currentVersion === latestVersion) {
     channel.appendLine(`Already at latest version: ${currentVersion}`);
@@ -180,10 +186,10 @@ async function checkForUpdates(
     doUpdate = choice === label;
   }
 
-  if (!doUpdate) return;
+  if (!doUpdate) {return;}
 
   try {
-    await install(context, channel, latestVersion);
+    await install(context, channel, latestTag);
   } catch (err) {
     channel.appendLine(`Failed to install: ${err}`);
     vscode.window.showWarningMessage(`swls: installation failed. (${err})`);
@@ -222,7 +228,7 @@ function createWorkerTransport(worker: WorkerThread) {
       buf = Buffer.concat([buf, chunk]);
       while (true) {
         const sep = buf.indexOf("\r\n\r\n");
-        if (sep === -1) break;
+        if (sep === -1) {break;}
         const header = buf.subarray(0, sep).toString("ascii");
         const m = /Content-Length:\s*(\d+)/i.exec(header);
         if (!m) {
@@ -231,7 +237,7 @@ function createWorkerTransport(worker: WorkerThread) {
         }
         const len = Number(m[1]);
         const start = sep + 4;
-        if (buf.length < start + len) break;
+        if (buf.length < start + len) {break;}
         worker.postMessage(
           JSON.parse(buf.subarray(start, start + len).toString("utf8")),
         );
@@ -286,32 +292,38 @@ export async function activate(context: ExtensionContext) {
   const clientOptions = buildClientOptions(cfg);
   const checkUpdate = cfg.get<boolean>("checkUpdate") ?? true;
   const autoUpdate = cfg.get<boolean>("automaticUpdate") ?? false;
+  const forceWasm = cfg.get<boolean>("forceWasm") ?? false;
 
-  // Start immediately with whatever is locally available
+  // Start immediately with whatever is locally available, unless the user
+  // forces the bundled WASM server.
   let startedNative = false;
-  try {
-    const serverBin = await currentCommand(context);
-    channel.appendLine("Attempting to start native binary: " + serverBin);
-    const nodeClient = new NodeLanguageClient(
-      "semantic-web-lsp",
-      "semantic-web-lsp",
-      {
-        command: serverBin,
-        transport: TransportKind.stdio,
-      } satisfies ServerOptions,
-      clientOptions,
-    );
+  if (forceWasm) {
+    channel.appendLine("swls.forceWasm enabled; skipping native binary");
+  } else {
     try {
-      await nodeClient.start();
-      client = nodeClient;
-      startedNative = true;
-      channel.appendLine("Native binary started");
+      const serverBin = await currentCommand(context);
+      channel.appendLine("Attempting to start native binary: " + serverBin);
+      const nodeClient = new NodeLanguageClient(
+        "semantic-web-lsp",
+        "semantic-web-lsp",
+        {
+          command: serverBin,
+          transport: TransportKind.stdio,
+        } satisfies ServerOptions,
+        clientOptions,
+      );
+      try {
+        await nodeClient.start();
+        client = nodeClient;
+        startedNative = true;
+        channel.appendLine("Native binary started");
+      } catch (err) {
+        await nodeClient.stop().catch(() => {});
+        channel.appendLine("Failed to start native binary: " + err);
+      }
     } catch (err) {
-      await nodeClient.stop().catch(() => {});
-      channel.appendLine("Failed to start native binary: " + err);
+      channel.appendLine("No local binary found: " + err);
     }
-  } catch (err) {
-    channel.appendLine("No local binary found: " + err);
   }
 
   if (!startedNative) {
@@ -323,8 +335,9 @@ export async function activate(context: ExtensionContext) {
     }
   }
 
-  // Background: check for updates / prompt to install
-  if (checkUpdate) {
+  // Background: check for updates / prompt to install. Skipped under forceWasm,
+  // since the native binary it would install is never used.
+  if (checkUpdate && !forceWasm) {
     checkForUpdates(autoUpdate, context, channel).catch((err) => {
       channel.appendLine(`Update check failed: ${err}`);
     });

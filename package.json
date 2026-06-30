@@ -19,7 +19,7 @@
     "language server",
     "semantic web language server"
   ],
-  "version": "0.0.15",
+  "version": "0.0.16",
   "icon": "logo.png",
   "engines": { "vscode": ">=1.100.0" },
   "repository": {
@@ -30,6 +30,7 @@
   "activationEvents": [
     "onLanguage:turtle",
     "onLanguage:trig",
+    "onLanguage:n3",
     "onLanguage:jsonld",
     "onLanguage:sparql"
   ],
@@ -39,24 +40,35 @@
     "[turtle]": {
       "editor.semanticHighlighting.enabled": true,
       "editor.inlayHints.enabled": "on",
+      "editor.formatOnType": true,
       "editor.tabCompletion": "onlySnippets",
       "editor.snippetSuggestions": "top"
     },
     "[trig]": {
       "editor.semanticHighlighting.enabled": true,
       "editor.inlayHints.enabled": "on",
+      "editor.formatOnType": true,
+      "editor.tabCompletion": "onlySnippets",
+      "editor.snippetSuggestions": "top"
+    },
+    "[n3]": {
+      "editor.semanticHighlighting.enabled": true,
+      "editor.inlayHints.enabled": "on",
+      "editor.formatOnType": true,
       "editor.tabCompletion": "onlySnippets",
       "editor.snippetSuggestions": "top"
     },
     "[jsonld]": {
       "editor.semanticHighlighting.enabled": true,
       "editor.inlayHints.enabled": "on",
+      "editor.formatOnType": true,
       "editor.tabCompletion": "onlySnippets",
       "editor.snippetSuggestions": "top"
     },
     "[sparql]": {
       "editor.semanticHighlighting.enabled": true,
       "editor.inlayHints.enabled": "on",
+      "editor.formatOnType": true,
       "editor.tabCompletion": "onlySnippets",
       "editor.snippetSuggestions": "top"
     }
@@ -88,7 +100,7 @@
     "languages": [
       {
         "id": "turtle",
-        "extensions": [ ".ttl" ],
+        "extensions": [ ".ttl", ".owl", ".nt" ],
         "semanticTokens": true,
         "configuration": "./config/turtle.json"
       },
@@ -99,6 +111,12 @@
         "configuration": "./config/trig.json"
       },
       {
+        "id": "n3",
+        "extensions": [ ".n3" ],
+        "semanticTokens": true,
+        "configuration": "./config/n3.json"
+      },
+      {
         "id": "jsonld",
         "extensions": [ ".jsonld", ".json" ],
         "semanticTokens": true,
@@ -106,7 +124,7 @@
       },
       {
         "id": "sparql",
-        "extensions": [ ".sq", ".rq" ],
+        "extensions": [ ".sq", ".rq", ".ru", ".sparql" ],
         "semanticTokens": true,
         "configuration": "./config/sparql.json"
       }
@@ -121,6 +139,11 @@
             "type": "string",
             "default": "",
             "description": "Path to the swls binary. If empty, the bundled binary in the extension directory is used."
+          },
+          "swls.forceWasm": {
+            "type": "boolean",
+            "default": false,
+            "description": "Skip the native binary and always run the bundled WASM language server."
           },
           "swls.checkUpdate": {
             "type": "boolean",
@@ -138,25 +161,38 @@
             "default": "debug",
             "description": "Log level for the language server."
           },
-          "swls.turtle": {
-            "type": "boolean",
-            "default": true,
-            "description": "Enable Turtle Language."
+          "swls.languages": {
+            "type": "array",
+            "markdownDescription": "Languages for which SWLS is enabled.",
+            "items": {
+              "type": "string",
+              "enum": [ "turtle", "trig", "n3", "jsonld", "sparql" ],
+              "enumDescriptions": [
+                "Turtle (.ttl, .owl, .nt).",
+                "TriG (.trig).",
+                "N3 / Notation3 (.n3).",
+                "JSON-LD (.jsonld, .json).",
+                "SPARQL (.sq, .rq, .ru, .sparql) — experimental."
+              ]
+            },
+            "uniqueItems": true,
+            "default": [ "turtle", "trig", "n3", "jsonld" ]
           },
-          "swls.trig": {
-            "type": "boolean",
-            "default": true,
-            "description": "Enable TriG Language."
-          },
-          "swls.jsonld": {
-            "type": "boolean",
-            "default": true,
-            "description": "Enable JSON-LD Language."
-          },
-          "swls.sparql": {
-            "type": "boolean",
-            "default": false,
-            "description": "Enable SPARQL Language."
+          "swls.formatLanguages": {
+            "type": "array",
+            "markdownDescription": "Languages for which document formatting is enabled.",
+            "items": {
+              "type": "string",
+              "enum": [ "turtle", "trig", "n3", "jsonld" ],
+              "enumDescriptions": [
+                "Format Turtle.",
+                "Format TriG.",
+                "Format N3 (Notation3).",
+                "Format JSON-LD."
+              ]
+            },
+            "uniqueItems": true,
+            "default": [ "turtle" ]
           },
           "swls.ontologies": {
             "type": "array",
@@ -172,9 +208,72 @@
           },
           "swls.disabled": {
             "type": "array",
-            "items": { "type": "string", "enum": [ "shapes" ] },
-            "default": [  ],
-            "description": "Features to disable (e.g. \"shapes\")."
+            "markdownDescription": "Features and diagnostics to turn off. Add an entry for each one you want disabled.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "shapes",
+                "undefined_prefix",
+                "unused_prefix",
+                "namespace_properties",
+                "syntax_diagnostics",
+                "completion",
+                "completion_keyword",
+                "completion_class",
+                "completion_property",
+                "completion_prefix",
+                "completion_subject",
+                "hover",
+                "hover_type",
+                "hover_class",
+                "hover_property",
+                "hover_excluded_property",
+                "goto_definition",
+                "goto_definition_components_js",
+                "goto_type_definition",
+                "references",
+                "rename",
+                "semantic_tokens",
+                "format",
+                "prefix_auto_insert",
+                "code_action",
+                "code_action_organize_imports",
+                "code_action_blank_node_refactor",
+                "inlay_hint"
+              ],
+              "enumDescriptions": [
+                "SHACL shape validation.",
+                "Diagnostic for predicate/object IRIs that use an undeclared prefix.",
+                "Diagnostic for prefixes that are declared but never used.",
+                "Diagnostic for properties under a closed_namespaces namespace that are not known to the ontology and not in allowed_properties.",
+                "Diagnostics for syntax/parse errors.",
+                "Master switch: completion (textDocument/completion) entirely.",
+                "Keyword completion (e.g. @prefix, @context).",
+                "RDF class-name completion (e.g. after \"a \"/\"rdf:type\").",
+                "RDF property/predicate-name completion.",
+                "Prefix-name completion sourced from bundled LOV / prefix.cc data.",
+                "Subject-IRI completion that reuses subjects already used in the document (Turtle only).",
+                "Master switch: hover (textDocument/hover) entirely.",
+                "Hover showing the inferred RDF type(s) of the term under the cursor.",
+                "Hover showing ontology documentation for an RDF class IRI.",
+                "Hover showing ontology documentation for a property/predicate IRI.",
+                "Hover explanation shown for a property that is only accepted because it is in allowed_properties.",
+                "Master switch: goto-definition (textDocument/definition) entirely.",
+                "Components.js-specific goto-definition (component/module/parameter IRIs and import/context URLs).",
+                "Goto type-definition.",
+                "Find-all-references.",
+                "Rename.",
+                "Semantic tokens.",
+                "Document formatting.",
+                "Auto-inserting the missing prefix/context declaration while typing \"prefix:\".",
+                "Master switch: code actions (textDocument/codeAction) entirely.",
+                "The \"Organize Imports\" quick-fix that sorts @prefix declarations (Turtle).",
+                "The \"Extract blank node\" / \"Inline named blank node\" quick-fixes.",
+                "Inlay hints."
+              ]
+            },
+            "uniqueItems": true,
+            "default": [  ]
           },
           "swls.prefixDisabled": {
             "type": "array",
@@ -185,20 +284,29 @@
           "swls.completion.mode": {
             "type": "string",
             "enum": [ "none", "loose", "strict" ],
+            "enumDescriptions": [
+              "Use the server default.",
+              "Suggest all properties regardless of the subject's type.",
+              "Only suggest properties whose domain matches the subject's type."
+            ],
             "default": "none",
-            "description": "Property completion mode. 'loose' suggests all properties; 'strict' only suggests properties whose domain matches the subject type; 'none' uses the server default."
+            "markdownDescription": "Property completion mode. Combine with `#swls.completion.exceptions#` to carve out namespaces that get the opposite treatment."
           },
-          "swls.completion.strict": {
+          "swls.completion.exceptions": {
             "type": "array",
             "items": { "type": "string" },
             "default": [  ],
-            "description": "Namespace prefixes that require a matching domain (used when mode is 'loose' to selectively enforce strictness). Takes precedence over mode."
+            "markdownDescription": "Namespace IRIs that get the **opposite** treatment of `#swls.completion.mode#`: in `loose` mode these are matched strictly (domain required), in `strict` mode these are always suggested. Ignored when mode is `none`."
           },
-          "swls.completion.except": {
-            "type": "array",
-            "items": { "type": "string" },
-            "default": [  ],
-            "description": "Namespace prefixes that are always suggested regardless of domain (used when mode is 'strict' to selectively relax strictness). Takes precedence over mode."
+          "swls.prefixFormat": {
+            "type": "string",
+            "enum": [ "turtle", "sparql" ],
+            "enumDescriptions": [
+              "Write \"@prefix ex: <...> .\" (Turtle style).",
+              "Write \"PREFIX ex: <...>\" (SPARQL style)."
+            ],
+            "default": "turtle",
+            "description": "Preferred syntax when the editor inserts a Turtle/TriG prefix declaration (e.g. during prefix completion or the \"add missing prefix\" quick-fix)."
           }
         }
       }
