@@ -37,6 +37,58 @@ const DISABLE_TOGGLES: [string, string][] = [
   ["inlayHint", "inlay_hint"],
 ];
 
+// Languages this extension contributes `configurationDefaults` for. Kept in
+// sync with the `[turtle]`/`[trig]`/… blocks in package.json.
+const DEFAULTED_LANGUAGES = ["turtle", "trig", "n3", "jsonld", "sparql"];
+
+// `contributes.configurationDefaults` in package.json sets editor.formatOnType
+// per language, but VS Code doesn't reliably surface that as "on" in the
+// Settings UI / doesn't always apply it (see e.g. microsoft/vscode-python#20673
+// for the same problem, and how the Python extension works around it). Mirror
+// their fix: write the setting into the user's actual settings.json ourselves,
+// once, and only if the user hasn't already made a choice for it at any scope.
+export async function applyFormatOnTypeDefaults(
+  context: vscode.ExtensionContext,
+  channel: vscode.OutputChannel,
+): Promise<void> {
+  for (const languageId of DEFAULTED_LANGUAGES) {
+    const stateKey = `swls.formatOnTypeDefaultApplied.${languageId}`;
+    if (context.globalState.get<boolean>(stateKey)) {
+      continue;
+    }
+
+    const config = vscode.workspace.getConfiguration("editor", { languageId });
+    const inspected = config.inspect<boolean>("formatOnType");
+    const alreadySet =
+      inspected?.globalValue !== undefined ||
+      inspected?.workspaceValue !== undefined ||
+      inspected?.workspaceFolderValue !== undefined ||
+      inspected?.globalLanguageValue !== undefined ||
+      inspected?.workspaceLanguageValue !== undefined ||
+      inspected?.workspaceFolderLanguageValue !== undefined;
+
+    if (!alreadySet) {
+      try {
+        // `overrideInLanguage: true` writes into the `"[turtle]": { ... }`
+        // block of the user settings, rather than the top-level setting.
+        await config.update(
+          "formatOnType",
+          true,
+          vscode.ConfigurationTarget.Global,
+          true,
+        );
+        channel.appendLine(`Enabled editor.formatOnType for [${languageId}]`);
+      } catch (err) {
+        channel.appendLine(
+          `Failed to set editor.formatOnType for [${languageId}]: ${err}`,
+        );
+      }
+    }
+
+    await context.globalState.update(stateKey, true);
+  }
+}
+
 function logToChannel(label: string, msg: string) {
   if (channels[label] === undefined) {
     channels[label] = vscode.window.createOutputChannel("swls::" + label);

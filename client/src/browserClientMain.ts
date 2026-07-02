@@ -2,6 +2,7 @@ import { ExtensionContext, Uri } from "vscode";
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/browser";
 import {
+  applyFormatOnTypeDefaults,
   buildClientOptions,
   registerFsHandlers,
   setupBroadcastLogging,
@@ -13,6 +14,10 @@ let client: LanguageClient | undefined;
 export async function activate(context: ExtensionContext) {
   const channel = vscode.window.createOutputChannel("swls");
   channel.appendLine("semantic-web-lsp activated");
+
+  applyFormatOnTypeDefaults(context, channel).catch((err) => {
+    channel.appendLine(`Failed to apply formatOnType defaults: ${err}`);
+  });
 
   setupBroadcastLogging(channel);
   setupVirtualDocProvider();

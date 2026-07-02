@@ -19,7 +19,7 @@
     "language server",
     "semantic web language server"
   ],
-  "version": "0.0.16",
+  "version": "0.0.17",
   "icon": "logo.png",
   "engines": { "vscode": ">=1.100.0" },
   "repository": {

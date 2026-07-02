@@ -8,6 +8,7 @@ import {
 import { PassThrough, Transform } from "stream";
 import { Worker as WorkerThread } from "worker_threads";
 import {
+  applyFormatOnTypeDefaults,
   buildClientOptions,
   registerFsHandlers,
   setupBroadcastLogging,
@@ -153,6 +154,10 @@ async function checkForUpdates(
   } catch {
     // no binary installed yet
   }
+  // The binary may report its version as a bare semver ("0.4.0") or as the
+  // release tag ("swls-v0.4.0"), depending on build. Normalize the same way
+  // as `latestVersion` below so equal versions actually compare equal.
+  currentVersion = currentVersion.replace(/^swls-v/, "");
 
   let latestTag: string;
   try {
@@ -288,6 +293,9 @@ async function startWasm(
 
 export async function activate(context: ExtensionContext) {
   const channel = vscode.window.createOutputChannel("swls");
+  applyFormatOnTypeDefaults(context, channel).catch((err) => {
+    channel.appendLine(`Failed to apply formatOnType defaults: ${err}`);
+  });
   const cfg = vscode.workspace.getConfiguration("swls");
   const clientOptions = buildClientOptions(cfg);
   const checkUpdate = cfg.get<boolean>("checkUpdate") ?? true;
